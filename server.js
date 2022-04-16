@@ -32,7 +32,7 @@ app.use(cors());
 app.use(bodyParser.json())
 
 
-app.post('/auth', (req, res) => {
+app.use('/auth', (req, res) => {
 
   // asynchronously check if our tokeb is valid and return the user id in data property of result
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (err, result) {
@@ -58,7 +58,7 @@ app.post('/auth', (req, res) => {
 });
 
 
-app.post('/retrievequizzes', (req, res) => {
+app.use('/retrievequizzes', (req, res) => {
 
   // error 400 bad request
   //jwt must be provided
@@ -123,7 +123,7 @@ app.post('/retrievequizzes', (req, res) => {
 });
 
 
-app.post('/login', (req, res) => {
+app.use('/login', (req, res) => {
 
   // ? characters in query represent escaped placeholders for our username and password 
 
@@ -185,7 +185,7 @@ app.post('/login', (req, res) => {
 });
 
 
-app.post('/register', (req, res) => {
+app.use('/register', (req, res) => {
 
   // ? characters in query represent escaped placeholders for our username and password 
 
@@ -261,7 +261,7 @@ app.post('/register', (req, res) => {
 });
 
 
-app.post('/insertquiz', (req, res) => {
+app.use('/insertquiz', (req, res) => {
 
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenSuccess) {
@@ -324,7 +324,7 @@ app.post('/insertquiz', (req, res) => {
 });
 
 
-app.post('/retrievequestions', (req, res) => {
+app.use('/retrievequestions', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET);
 
@@ -392,7 +392,7 @@ app.post('/retrievequestions', (req, res) => {
 
 });
 
-app.post('/sendresults', (req, res) => {
+app.use('/sendresults', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (verifyError, verifySuccess) {
 
@@ -450,7 +450,7 @@ app.post('/sendresults', (req, res) => {
 
 });
 
-app.post('/retrieveleaderboard', (req, res) => {
+app.use('/retrieveleaderboard', (req, res) => {
 
 
   // TODO also add a algorithm which uses the score of each quiz a user has attempted and weights them based on that score
@@ -486,7 +486,7 @@ app.post('/retrieveleaderboard', (req, res) => {
 
 
 
-app.post('/finduserrank', (req, res) => {
+app.use('/finduserrank', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -528,7 +528,7 @@ app.post('/finduserrank', (req, res) => {
 });
 
 
-app.post('/findquiz', (req, res) => {
+app.use('/findquiz', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -581,7 +581,7 @@ app.post('/findquiz', (req, res) => {
 
 });
 
-app.post('/retrieveuserquizzes', (req, res) => {
+app.use('/retrieveuserquizzes', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -632,7 +632,7 @@ app.post('/retrieveuserquizzes', (req, res) => {
 });
 
 
-app.post('/removeuserquiz', (req, res) => {
+app.use('/removeuserquiz', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -666,7 +666,7 @@ app.post('/removeuserquiz', (req, res) => {
 
 });
 
-app.post('/updateuserquizdifficulty', (req, res) => {
+app.use('/updateuserquizdifficulty', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -701,7 +701,7 @@ app.post('/updateuserquizdifficulty', (req, res) => {
 });
 
 
-app.post('/updateuserquizname', (req, res) => {
+app.use('/updateuserquizname', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -739,7 +739,7 @@ app.post('/updateuserquizname', (req, res) => {
 
 
 
-app.post('/updateuserquestion', (req, res) => {
+app.use('/updateuserquestion', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -777,7 +777,7 @@ app.post('/updateuserquestion', (req, res) => {
 });
 
 
-app.post('/updateuserquestionoption', (req, res) => {
+app.use('/updateuserquestionoption', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -815,7 +815,7 @@ app.post('/updateuserquestionoption', (req, res) => {
 });
 
 
-app.post('/finduserquizzes', (req, res) => {
+app.use('/finduserquizzes', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
@@ -864,6 +864,3 @@ app.post('/finduserquizzes', (req, res) => {
 
 });
 
-
-
-app.listen(8080);
