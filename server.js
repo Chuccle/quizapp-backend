@@ -27,7 +27,7 @@ require('dotenv').config({
 
 app.use(limiter);
 
-app.use(cors({ origin: "quiz-app-orpin-beta.vercel.app"}));
+app.use(cors());
 
 app.use(bodyParser.json())
 
