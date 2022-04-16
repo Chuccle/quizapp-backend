@@ -11,10 +11,10 @@ const rateLimit = require('express-rate-limit').default //.default is needed to 
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minutes
 	max: 50, // Limit each IP to 50 requests per `window` (here, per 1 minutes)
-});
+}); 
 
 require('dotenv').config({
-  path: '../../src/.env'
+  path: './src/.env'
 })
 
 app.use(limiter);
