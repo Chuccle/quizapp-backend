@@ -7,21 +7,23 @@ require('dotenv').config({
 
   //Connection pooling 
 
-const connection = mysql.createPool({
-	host: process.env.HOST,
-	user: process.env.USER,
-	password: process.env.PASSWORD,
-	database: process.env.DATABASE,
-});
+//can't use because my plan has limits on the number of connections
+
+// const connection = mysql.createPool({
+// 	host: process.env.HOST,
+// 	user: process.env.USER,
+// 	password: process.env.PASSWORD,
+// 	database: process.env.DATABASE,
+// });
 
 
 // session pooling
 
-//const connection = mysql.createConnection({
-	// host: process.env.HOST,
-	// user: process.env.USER,
-	// password: process.env.PASSWORD,
-	// database: process.env.DATABASE,
-//});
+const connection = mysql.createConnection({
+	host: process.env.HOST,
+	user: process.env.USER,
+	password: process.env.PASSWORD,
+ database: process.env.DATABASE,
+});
 
 module.exports = connection;
