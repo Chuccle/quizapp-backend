@@ -267,8 +267,6 @@ app.use('/register', (req, res) => {
 app.use('/insertquiz', (req, res) => {
 
   
-  
-
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenSuccess) {
 
 
@@ -359,16 +357,16 @@ app.use('/retrievequestions', (req, res) => {
           const questiondata = {
 
             Questionid: selectQuestionRecordsResults[i].id,
-            Questiontext: selectQuestionRecordsResults[i].Question,
+            Questiontext: selectQuestionRecordsResults[i].question,
             Options: {
               Correctid: CorrectOptionRecordResults[0].id,
-              Correct: CorrectOptionRecordResults[0].questionText,
+              Correct: CorrectOptionRecordResults[0].questiontext,
               Incorrect1id: IncorrectOptionRecordResults[0].id,
-              Incorrect1: IncorrectOptionRecordResults[0].questionText,
+              Incorrect1: IncorrectOptionRecordResults[0].questiontext,
               Incorrect2id: IncorrectOptionRecordResults[1].id,
-              Incorrect2: IncorrectOptionRecordResults[1].questionText,
+              Incorrect2: IncorrectOptionRecordResults[1].questiontext,
               Incorrect3id: IncorrectOptionRecordResults[2].id,
-              Incorrect3: IncorrectOptionRecordResults[2].questionText,
+              Incorrect3: IncorrectOptionRecordResults[2].questiontext,
             }
 
           }
@@ -377,7 +375,8 @@ app.use('/retrievequestions', (req, res) => {
 
           // inefficient, runs every iteration
 
-          if (i == selectQuestionRecordsResults.length-1) {
+
+          if (i === selectQuestionRecordsResults.length - 1) {
 
             res.send({
               Questions: questionqueue
@@ -412,10 +411,10 @@ app.use('/sendresults', (req, res) => {
 
 
 
-        if (selectUserQuizDataResults.length == 0) {
+        if (selectUserQuizDataResults.length === 0) {
 
 
-          connection.query('insert into Quiz_User_Answers(userid, quizid, score) values (?,?,?)', [verifySuccess.data, req.body.quizid, req.body.results], function (insertUserQuizDataError, insertUserQuizDataResults) {
+          connection.query('INSERT INTO Quiz_User_Answers(userid, quizid, score) values (?,?,?)', [verifySuccess.data, req.body.quizid, req.body.results], function (insertUserQuizDataError, insertUserQuizDataResults) {
 
             if (insertUserQuizDataError) throw res.send({
               error: insertUserQuizDataError

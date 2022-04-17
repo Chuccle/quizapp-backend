@@ -13,7 +13,7 @@ CREATE TABLE `Quizzes` (
 
 CREATE TABLE `Questions` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
-  `quizID` int,
+  `quizid` int,
   `question` text
 );
 
@@ -35,18 +35,18 @@ CREATE TABLE `Quiz_User_Answers` (
 
 ALTER TABLE `Quizzes` ADD FOREIGN KEY (`created_by_userid`) REFERENCES `Accounts` (`id`) ON DELETE CASCADE;
 
-ALTER TABLE `Questions` ADD FOREIGN KEY (`quizID`) REFERENCES `Quizzes` (`id`) ON DELETE CASCADE;
+ALTER TABLE `Questions` ADD FOREIGN KEY (`quizid`) REFERENCES `Quizzes` (`id`) ON DELETE CASCADE;
 
-ALTER TABLE `Question_Options` ADD FOREIGN KEY (`questionID`) REFERENCES `Questions` (`id`) ON DELETE CASCADE;
+ALTER TABLE `Question_Options` ADD FOREIGN KEY (`questionid`) REFERENCES `Questions` (`id`) ON DELETE CASCADE;
 
 ALTER TABLE `Quiz_User_Answers` ADD FOREIGN KEY (`userid`) REFERENCES `Accounts` (`id`) ON DELETE CASCADE;
 
 -- This will delete the score record if the quiz is deleted
 
-ALTER TABLE `quiz_user_answers` ADD FOREIGN KEY (`quizID`) REFERENCES `Quizzes` (`id`) ON DELETE CASCADE; 
+ALTER TABLE `Quiz_User_Answers` ADD FOREIGN KEY (`quizid`) REFERENCES `Quizzes` (`id`) ON DELETE CASCADE; 
 
 -- Alternatively If we want users to keep scores from deleted quizzes
 
--- ALTER TABLE `quiz_user_answers` ADD FOREIGN KEY (`quizID`) REFERENCES `Quizzes` (`id`) ON DELETE NO ACTION;
+-- ALTER TABLE `quiz_user_answers` ADD FOREIGN KEY (`quizid`) REFERENCES `Quizzes` (`id`) ON DELETE NO ACTION;
 
 
