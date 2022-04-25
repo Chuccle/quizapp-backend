@@ -16,7 +16,9 @@ const rateLimit = require('express-rate-limit').default //.default is needed to 
 
 
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: true,
+
+  // https://quiz-app-git-refreshtokentest-chuccle.vercel.app
   //for prod: https://quiz-app-chuccle.vercel.app/
 
   credentials: true
@@ -59,16 +61,38 @@ app.use('/logout', (req, res) => {
 
 })
 
-
-
-
-
 app.use('/auth', (req, res) => {
 
-
-  console.log(req.body)
-
   // asynchronously check if our tokeb is valid and return the user id in data property of result
+  jwt.verify(req.body.token, process.env.JWT_SECRET, function (err, result) {
+
+
+    if (result) {
+
+      res.send({
+        message: 'token is valid',
+      })
+
+
+    } else {
+
+      res.status(401).json({
+        error: 'invalid token'
+      })
+
+    }
+
+  })
+
+});
+
+
+
+
+app.use('/silentrefresh', (req, res) => {
+
+
+  // asynchronously check if our token is valid and return the user id in data property of result
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (err, result) {
 
 
@@ -82,15 +106,17 @@ app.use('/auth', (req, res) => {
 
     } else if (err.message == 'jwt expired') {
 
+      // if token is expired, we need to refresh it
 
       jwt.verify(req.cookies.session_token, process.env.COOKIE_SECRET, function (err, result) {
 
         if (result) {
 
+          // if the cookie is valid, we can refresh the token
           let newToken = jwt.sign({
             data: result.data
           }, process.env.JWT_SECRET, {
-            expiresIn: '10s'
+            expiresIn: process.env.ACCESS_TOKEN_LIFE
           })
 
 
@@ -101,6 +127,8 @@ app.use('/auth', (req, res) => {
 
         } else {
 
+          // if the cookie is invalid, we need to respond with error
+          console.log('invalid cookie')
           res.status(401).json({
             error: 'invalid token'
           })
@@ -113,6 +141,7 @@ app.use('/auth', (req, res) => {
 
     } else {
 
+      // if the token is invalid for reasons other than expiry, we need to respond with error
       res.status(401).json({
         error: err
       });
@@ -213,7 +242,7 @@ app.use('/login', (req, res) => {
           let token = jwt.sign({
             data: selectUserRecordResults[0].id
           }, process.env.JWT_SECRET, {
-            expiresIn: '10s'
+            expiresIn: process.env.ACCESS_TOKEN_LIFE
           })
 
           let refreshToken = jwt.sign({
@@ -226,7 +255,9 @@ app.use('/login', (req, res) => {
 
           //sending our token response back to the client
 
-          res.cookie('session_token', refreshToken, { httpOnly: true, maxAge: sevendaymillis, path: "/" });              //sending our token response back to the client
+          res.cookie('session_token', refreshToken, { sameSite: 'none', httpOnly: true, maxAge: sevendaymillis, secure: true });              //sending our token response back to the client
+
+
 
           res.send({
             token: token
@@ -278,28 +309,25 @@ app.use('/register', (req, res) => {
               error: InsertUserError
             });
 
-            jwt.sign({
+            let accessToken = jwt.sign({
               data: InsertUserResults.insertId
             }, process.env.JWT_SECRET, {
               expiresIn: process.env.ACCESS_TOKEN_LIFE
-            }, function (tokenCreationErr, tokenCreationSuccess) {
+            })
 
-              if (tokenCreationSuccess) {
+            let refreshToken = jwt.sign({
+              data: InsertUserResults.insertId
+            }, process.env.JWT_SECRET, {
+              expiresIn: process.env.REFRESH_TOKEN_LIFE
+            })
 
+            let sevendaymillis = 7 * 24 * 60 * 60 * 1000;
 
-                res.send({
-                  token: tokenCreationSuccess
-                });
+            res.cookie('session_token', refreshToken, { sameSite: 'none', httpOnly: true, maxAge: sevendaymillis, secure: true });
 
-              } else {
-
-                res.send({
-                  error: tokenCreationErr
-                });
-
-              };
-
-            });
+            res.send({
+              token: accessToken
+            })
 
           });
 
