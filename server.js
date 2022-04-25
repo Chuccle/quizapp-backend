@@ -5,13 +5,31 @@ const bodyParser = require('body-parser')
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const app = express();
+const cookieParser = require('cookie-parser');
+
+
+
+
 
 const rateLimit = require('express-rate-limit').default //.default is needed to get this to work
 
+
+
+const corsOptions = {
+  origin: 'http://localhost:3000',
+  //for prod: https://quiz-app-chuccle.vercel.app/
+
+  credentials: true
+}
+
+
+
+app.use(cors(corsOptions))
+
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minutes
-	max: 50, // Limit each IP to 50 requests per `window` (here, per 1 minutes)
-}); 
+  max: 1000, // Limit each IP to 50 requests per `window` (here, per 1 minutes)
+});
 
 
 const PORT = process.env.PORT || 8080;
@@ -27,16 +45,28 @@ require('dotenv').config({
 
 app.use(limiter);
 
-app.use(cors());
 
 app.use(bodyParser.json())
 
+app.use(cookieParser())
 
 
-//TODO: double quiz insertion bug
+app.use('/logout', (req, res) => {
+
+  res.clearCookie('session_token')
+  res.send('logged out')
+
+
+})
+
+
+
 
 
 app.use('/auth', (req, res) => {
+
+
+  console.log(req.body)
 
   // asynchronously check if our tokeb is valid and return the user id in data property of result
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (err, result) {
@@ -44,14 +74,46 @@ app.use('/auth', (req, res) => {
 
     if (result) {
 
-
       res.send({
-        message: result
+        message: 'token is valid',
       })
+
+
+
+    } else if (err.message == 'jwt expired') {
+
+
+      jwt.verify(req.cookies.session_token, process.env.COOKIE_SECRET, function (err, result) {
+
+        if (result) {
+
+          let newToken = jwt.sign({
+            data: result.data
+          }, process.env.JWT_SECRET, {
+            expiresIn: '10s'
+          })
+
+
+
+          res.send({
+            token: newToken
+          });
+
+        } else {
+
+          res.status(401).json({
+            error: 'invalid token'
+          })
+
+
+        }
+
+      })
+
 
     } else {
 
-      res.send({
+      res.status(401).json({
         error: err
       });
 
@@ -113,6 +175,7 @@ app.use('/retrievequizzes', (req, res) => {
         });
 
     } else {
+      console.log(tokenErr.message == 'jwt expired')
 
       res.send({
         error: tokenErr
@@ -147,29 +210,28 @@ app.use('/login', (req, res) => {
           //signing our token to send to client
           //we use primary key of our record as it guaranatees a unique identifier of the record
 
-          jwt.sign({
+          let token = jwt.sign({
             data: selectUserRecordResults[0].id
           }, process.env.JWT_SECRET, {
-            expiresIn: process.env.ACCESS_TOKEN_LIFE
-          }, function (tokenErr, tokenSuccess) {
+            expiresIn: '10s'
+          })
 
-            if (tokenSuccess) {
+          let refreshToken = jwt.sign({
+            data: selectUserRecordResults[0].id
+          }, process.env.COOKIE_SECRET, {
+            expiresIn: process.env.REFRESH_TOKEN_LIFE
+          })
 
-              //sending our token response back to the client
+          let sevendaymillis = 7 * 24 * 60 * 60 * 1000;
 
-              res.send({
-                token: tokenSuccess
-              });
+          //sending our token response back to the client
 
-            } else {
+          res.cookie('session_token', refreshToken, { httpOnly: true, maxAge: sevendaymillis, path: "/" });              //sending our token response back to the client
 
-              res.send({
-                error: tokenErr
-              });
-
-            };
-
+          res.send({
+            token: token
           });
+
 
         } else {
 
@@ -266,7 +328,7 @@ app.use('/register', (req, res) => {
 
 app.use('/insertquiz', (req, res) => {
 
-  
+
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenSuccess) {
 
 
@@ -388,7 +450,7 @@ app.use('/retrievequestions', (req, res) => {
 
       });
 
-    };   
+    };
 
   });
 
@@ -428,7 +490,7 @@ app.use('/sendresults', (req, res) => {
           if (selectUserQuizDataResults[0].score < req.body.results) {
             //by using update we can reduce the amount of records overall, the alternative is multiple records with different scores
             connection.query('UPDATE Quiz_User_Answers SET score = ? WHERE id = ?', [req.body.results, selectUserQuizDataResults[0].id], function (updateUserQuizDataError, updateUserQuizDataResults) {
-               
+
               if (updateUserQuizDataError) throw res.send({
                 error: updateUserQuizDataError
 
@@ -484,7 +546,7 @@ app.use('/retrieveleaderboard', (req, res) => {
 
     });
 
-  
+
   })
 
 });
@@ -539,11 +601,11 @@ app.use('/findquiz', (req, res) => {
 
     if (tokenResult) {
 
-    
+
 
       const offset = req.body.currentpage * 6;
 
-    
+
 
       connection.query('SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? WHERE Quizzes.quizname = ? LIMIT ?, 6',
         [tokenResult.data, req.body.searchquery, offset],
@@ -566,7 +628,7 @@ app.use('/findquiz', (req, res) => {
               res.send({
                 results: selectQuiznameResult,
                 quizsearchcount: selectQuiznameCountResult
-             
+
               });
 
             });
@@ -590,7 +652,7 @@ app.use('/retrieveuserquizzes', (req, res) => {
 
   jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {  
+    if (tokenResult) {
 
       const offset = req.body.currentpage * 6;
 
@@ -612,7 +674,7 @@ app.use('/retrieveuserquizzes', (req, res) => {
 
               });
 
-      
+
               res.send({
                 results: selectUserQuizzesResult,
                 quizsearchcount: selectUserQuizCountResult
@@ -628,7 +690,7 @@ app.use('/retrieveuserquizzes', (req, res) => {
         error: tokenErr
       });
 
-    
+
 
     };
 
