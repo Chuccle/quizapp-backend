@@ -16,7 +16,7 @@ const rateLimit = require('express-rate-limit').default //.default is needed to 
 const origins = ['https://quiz-app-orpin-beta.vercel.app', 'https://quiz-app-git-master-chuccle.vercel.app', 'https://quiz-app-chuccle.vercel.app']
 
 const corsOptions = {
-  origin: origins,
+  origin: true,
 
   //https://quiz-app-git-refreshtokentest-chuccle.vercel.app
   //for prod: https://quiz-app-chuccle.vercel.app/
