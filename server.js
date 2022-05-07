@@ -13,7 +13,7 @@ const cookieParser = require('cookie-parser');
 
 const rateLimit = require('express-rate-limit').default //.default is needed to get this to work
 
-const origins = ['https://quiz-app-orpin-beta.vercel.app', 'https://quiz-app-git-master-chuccle.vercel.app']
+const origins = ['https://quiz-app-orpin-beta.vercel.app', 'https://quiz-app-git-master-chuccle.vercel.app', 'https://quiz-app-chuccle.vercel.app']
 
 const corsOptions = {
   origin: origins,
