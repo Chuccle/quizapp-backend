@@ -61,7 +61,7 @@ app.use('/logout', (req, res) => {
  
 
   res.clearCookie('session_token', { sameSite:'none', httpOnly:true, secure:true})
-  .redirect('http://google.com')
+  .redirect('/')
   
 })
 
