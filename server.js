@@ -62,7 +62,7 @@ app.use('/logout', (req, res) => {
   req.url
 
   res.clearCookie('session_token', { sameSite:'none', httpOnly:true, secure:true})
-  res.status(301).redirect('http://localhost:3000/')
+  res.status(301).redirect('http://localhost:3000')
   
 })
 
