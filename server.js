@@ -58,8 +58,8 @@ app.use(cookieParser())
 
 app.use('/logout', (req, res) => {
 
-  res.clearCookie('session_token', {path:'/', domain:'chuccle-quizapp-backend.herokuapp.com', sameSite:'none', httpOnly:true, secure:true})
-  .send({ message: 'Sign Out Successful' })
+  res.clearCookie('session_token', { sameSite:'none', httpOnly:true, secure:true})
+  .redirect('/login')
   
 })
 
