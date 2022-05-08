@@ -28,6 +28,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions))
 
+
+
+
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minutes
   max: 1000, // Limit each IP to 50 requests per `window` (here, per 1 minutes)
@@ -55,11 +58,9 @@ app.use(cookieParser())
 
 app.use('/logout', (req, res) => {
 
+  res.clearCookie('session_token', {path:'/', domain:'chuccle-quizapp-backend.herokuapp.com', sameSite:'none', httpOnly:true, secure:true})
+  .send({ message: 'Sign Out Successful' })
   
-  res.clearCookie('session_token', {path:'/', domain:'chuccle-quizapp-backend.herokuapp.com'})
-  res.send('logged out')
-
-
 })
 
 app.use('/auth', (req, res) => {
