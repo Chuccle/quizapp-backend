@@ -8,15 +8,14 @@ const app = express();
 const cookieParser = require('cookie-parser');
 
 
-
-
-
 const rateLimit = require('express-rate-limit').default //.default is needed to get this to work
 
-
+const origins = ['https://quiz-app-orpin-beta.vercel.app', 'https://quiz-app-git-master-chuccle.vercel.app', 'https://quiz-app-chuccle.vercel.app']
 
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: origins,
+
+  //https://quiz-app-git-refreshtokentest-chuccle.vercel.app
   //for prod: https://quiz-app-chuccle.vercel.app/
 
   credentials: true
@@ -25,6 +24,9 @@ const corsOptions = {
 
 
 app.use(cors(corsOptions))
+
+
+
 
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minutes
@@ -51,25 +53,50 @@ app.use(bodyParser.json())
 app.use(cookieParser())
 
 
-app.use('/logout', (req, res) => {
+app.delete('/logout', (req, res) => {
 
-  res.clearCookie('session_token')
-  res.send('logged out')
-
+  res.clearCookie('session_token', { sameSite: 'none', httpOnly: true, secure: true })
+  res.status(200).send({ message: 'logged out' })
 
 })
 
+app.get('/auth', (req, res) => {
 
-
-
-
-app.use('/auth', (req, res) => {
-
-
-  console.log(req.body)
-
+  const accessToken = req.headers.authorization.split(' ')[1]
   // asynchronously check if our tokeb is valid and return the user id in data property of result
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (err, result) {
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (err, result) {
+
+
+    if (result) {
+
+      res.send({
+        message: 'token is valid',
+      })
+
+
+    } else {
+
+      res.status(401).json({
+        error: 'invalid token'
+      })
+
+    }
+
+  })
+
+});
+
+
+
+
+app.get('/silentrefresh', (req, res) => {
+
+  // We split the Authorisation header into 2 parts, the Bearer part and the token and extract the token
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+
+  // asynchronously check if our token is valid and return the user id in data property of result
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (err, result) {
 
 
     if (result) {
@@ -82,15 +109,17 @@ app.use('/auth', (req, res) => {
 
     } else if (err.message == 'jwt expired') {
 
+      // if token is expired, we need to refresh it
 
       jwt.verify(req.cookies.session_token, process.env.COOKIE_SECRET, function (err, result) {
 
         if (result) {
 
+          // if the cookie is valid, we can refresh the token
           let newToken = jwt.sign({
             data: result.data
           }, process.env.JWT_SECRET, {
-            expiresIn: '10s'
+            expiresIn: process.env.ACCESS_TOKEN_LIFE
           })
 
 
@@ -113,6 +142,7 @@ app.use('/auth', (req, res) => {
 
     } else {
 
+      // if the token is invalid for reasons other than expiry, we need to respond with error
       res.status(401).json({
         error: err
       });
@@ -124,16 +154,19 @@ app.use('/auth', (req, res) => {
 });
 
 
-app.use('/retrievequizzes', (req, res) => {
+app.get('/retrievequizzes/:page', (req, res) => {
 
 
+  const accessToken = req.headers.authorization.split(' ')[1]
 
   // asynchronously check if our tokeb is valid and return the user id in data property of result
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     // offset is how many results the page is designed to display
-    const offset = req.body.currentpage * 6;
+    const extractedCurrentPage = req.params.page.split('=')[1];
+
+    const offset = extractedCurrentPage * 6;
 
 
     if (tokenResult) {
@@ -175,7 +208,6 @@ app.use('/retrievequizzes', (req, res) => {
         });
 
     } else {
-      console.log(tokenErr.message == 'jwt expired')
 
       res.send({
         error: tokenErr
@@ -189,7 +221,7 @@ app.use('/retrievequizzes', (req, res) => {
 });
 
 
-app.use('/login', (req, res) => {
+app.post('/login', (req, res) => {
 
   // ? characters in query represent escaped placeholders for our username and password 
 
@@ -213,7 +245,7 @@ app.use('/login', (req, res) => {
           let token = jwt.sign({
             data: selectUserRecordResults[0].id
           }, process.env.JWT_SECRET, {
-            expiresIn: '10s'
+            expiresIn: process.env.ACCESS_TOKEN_LIFE
           })
 
           let refreshToken = jwt.sign({
@@ -226,7 +258,9 @@ app.use('/login', (req, res) => {
 
           //sending our token response back to the client
 
-          res.cookie('session_token', refreshToken, { httpOnly: true, maxAge: sevendaymillis, path: "/" });              //sending our token response back to the client
+          res.cookie('session_token', refreshToken, { sameSite: 'none', httpOnly: true, maxAge: sevendaymillis, secure: true });              //sending our token response back to the client
+
+
 
           res.send({
             token: token
@@ -250,7 +284,7 @@ app.use('/login', (req, res) => {
 });
 
 
-app.use('/register', (req, res) => {
+app.post('/register', (req, res) => {
 
   // ? characters in query represent escaped placeholders for our username and password 
 
@@ -278,28 +312,25 @@ app.use('/register', (req, res) => {
               error: InsertUserError
             });
 
-            jwt.sign({
+            let accessToken = jwt.sign({
               data: InsertUserResults.insertId
             }, process.env.JWT_SECRET, {
               expiresIn: process.env.ACCESS_TOKEN_LIFE
-            }, function (tokenCreationErr, tokenCreationSuccess) {
+            })
 
-              if (tokenCreationSuccess) {
+            let refreshToken = jwt.sign({
+              data: InsertUserResults.insertId
+            }, process.env.JWT_SECRET, {
+              expiresIn: process.env.REFRESH_TOKEN_LIFE
+            })
 
+            let sevendaymillis = 7 * 24 * 60 * 60 * 1000;
 
-                res.send({
-                  token: tokenCreationSuccess
-                });
+            res.cookie('session_token', refreshToken, { sameSite: 'none', httpOnly: true, maxAge: sevendaymillis, secure: true });
 
-              } else {
-
-                res.send({
-                  error: tokenCreationErr
-                });
-
-              };
-
-            });
+            res.send({
+              token: accessToken
+            })
 
           });
 
@@ -326,10 +357,11 @@ app.use('/register', (req, res) => {
 });
 
 
-app.use('/insertquiz', (req, res) => {
+app.post('/insertquiz', (req, res) => {
 
+  const accessToken = req.headers.authorization.split(' ')[1]
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenSuccess) {
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenSuccess) {
 
 
     connection.query('INSERT INTO Quizzes (quizname, created_by_userid, difficulty) VALUES (?, ?, ?);', [req.body.questionset[0].Quizname, tokenSuccess.data, req.body.questionset[0].Difficulty], function (insertQuizError, insertQuizResults) {
@@ -389,14 +421,17 @@ app.use('/insertquiz', (req, res) => {
 });
 
 
-app.use('/retrievequestions', (req, res) => {
+app.get('/retrievequestions/:quizid', (req, res) => {
 
+  const accessToken = req.headers.authorization.split(' ')[1]
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET);
+  jwt.verify(accessToken, process.env.JWT_SECRET);
+
+  const extractedQuizID = req.params.quizid.split('=')[1];
 
   const questionqueue = [];
 
-  connection.query('SELECT * FROM Questions WHERE quizid = ?', [req.body.quizid], function (selectQuestionRecordsError, selectQuestionRecordsResults) {
+  connection.query('SELECT * FROM Questions WHERE quizid = ?', [extractedQuizID], function (selectQuestionRecordsError, selectQuestionRecordsResults) {
 
     if (selectQuestionRecordsError) throw res.send({
       error: selectQuestionRecordsError
@@ -456,12 +491,11 @@ app.use('/retrievequestions', (req, res) => {
 
 });
 
-app.use('/sendresults', (req, res) => {
+app.post('/sendresults', (req, res) => {
 
+  const accessToken = req.headers.authorization.split(' ')[1]
 
-
-
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (verifyError, verifySuccess) {
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (verifyError, verifySuccess) {
 
     if (verifySuccess) {
 
@@ -521,11 +555,15 @@ app.use('/sendresults', (req, res) => {
 
 });
 
-app.use('/retrieveleaderboard', (req, res) => {
+app.get('/retrieveleaderboard/:page', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET);
+  const accessToken = req.headers.authorization.split(' ')[1]
 
-  const offset = req.body.currentpage * 3;
+  jwt.verify(accessToken, process.env.JWT_SECRET);
+
+  const extractedCurrentPage = req.params.page.split('=')[1];
+
+  const offset = extractedCurrentPage * 3;
 
   connection.query('SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC  LIMIT ? , 3;', [offset], function (selectQuizScoresError, selectQuizScoresResults) {
 
@@ -553,21 +591,31 @@ app.use('/retrieveleaderboard', (req, res) => {
 
 
 
-app.use('/finduserrank', (req, res) => {
+app.get('/finduserrank/:params', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     if (tokenResult) {
 
-      const offset = req.body.currentpage * 3;
+      const rawSearchQuery = req.params.params.split('&')[0];
 
-      connection.query('SELECT * FROM (SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC) x WHERE username = ? LIMIT ?, 3', [req.body.searchquery, offset], function (selectUserPositionError, selectUserPositionResults) {
+      const rawCurrentpage = req.params.params.split('&')[1];
+
+      const extractedSearchQuery = rawSearchQuery.split('=')[1];
+
+      const extractedCurrentpage = rawCurrentpage.split('=')[1];
+
+      const offset = extractedCurrentpage * 3;
+
+      connection.query('SELECT * FROM (SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC) x WHERE username = ? LIMIT ?, 3', [extractedSearchQuery, offset], function (selectUserPositionError, selectUserPositionResults) {
 
         if (selectUserPositionError) throw res.send({
           error: selectUserPositionError
         });
 
-        connection.query('SELECT COUNT(*) AS usersearchcount FROM (SELECT * FROM (SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC) x WHERE username = ?) x;', [req.body.searchquery], function (selectUserPositionCountError, selectUserPositionCountResults) {
+        connection.query('SELECT COUNT(*) AS usersearchcount FROM (SELECT * FROM (SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC) x WHERE username = ?) x;', [extractedSearchQuery], function (selectUserPositionCountError, selectUserPositionCountResults) {
 
           if (selectUserPositionCountError) throw res.send({
             error: selectUserPositionCountError
@@ -595,20 +643,26 @@ app.use('/finduserrank', (req, res) => {
 });
 
 
-app.use('/findquiz', (req, res) => {
+app.get('/findquiz/:params', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     if (tokenResult) {
 
+      const rawSearchQuery = req.params.params.split('&')[0];
 
+      const rawCurrentpage = req.params.params.split('&')[1];
 
-      const offset = req.body.currentpage * 6;
+      const extractedSearchQuery = rawSearchQuery.split('=')[1];
 
+      const extractedCurrentpage = rawCurrentpage.split('=')[1];
 
+      const offset = extractedCurrentpage * 6;
 
       connection.query('SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? WHERE Quizzes.quizname = ? LIMIT ?, 6',
-        [tokenResult.data, req.body.searchquery, offset],
+        [tokenResult.data, extractedSearchQuery, offset],
         function (selectQuiznameError, selectQuiznameResult) {
 
           if (selectQuiznameError) throw res.send({
@@ -617,7 +671,7 @@ app.use('/findquiz', (req, res) => {
           });
 
           connection.query('SELECT COUNT(*) AS quizsearchcount FROM (SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? WHERE Quizzes.quizname = ?) x',
-            [tokenResult.data, req.body.searchquery],
+            [tokenResult.data, extractedSearchQuery],
             function (selectQuiznameCountError, selectQuiznameCountResult) {
 
               if (selectQuiznameCountError) throw res.send({
@@ -648,13 +702,17 @@ app.use('/findquiz', (req, res) => {
 
 });
 
-app.use('/retrieveuserquizzes', (req, res) => {
+app.get('/retrieveuserquizzes/:page', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  const extractedCurrentpage = req.params.page.split('=')[1];
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     if (tokenResult) {
 
-      const offset = req.body.currentpage * 6;
+      const offset = extractedCurrentpage * 6;
 
       connection.query('SELECT * FROM Quizzes WHERE created_by_userid = ? LIMIT ?, 6',
         [tokenResult.data, offset],
@@ -699,48 +757,18 @@ app.use('/retrieveuserquizzes', (req, res) => {
 });
 
 
-app.use('/removeuserquiz', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
+app.put('/updateuserquizdifficulty', (req, res) => {
 
-      connection.query('DELETE FROM Quizzes WHERE id = ?',
-        [req.body.primaryKeyId],
+  const accessToken = req.headers.authorization.split(' ')[1]
 
-        function (dropUserQuizzesError, dropUserQuizzesResult) {
-
-          if (dropUserQuizzesError) throw res.send({
-            error: dropUserQuizzesError
-
-          });
-
-          res.send({
-            results: dropUserQuizzesResult
-          });
-
-        });
-
-    } else {
-
-      res.send({
-        error: tokenErr
-      });
-
-    };
-
-  });
-
-});
-
-app.use('/updateuserquizdifficulty', (req, res) => {
-
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     if (tokenResult) {
 
       connection.query('UPDATE Quizzes SET difficulty = ? WHERE id = ?;',
-        [req.body.optionalValue1, req.body.primaryKeyId],
+        [req.body.optionalData, req.body.key],
 
         function (updateUserQuizDifficultyError, updateUserQuizDifficultyResult) {
 
@@ -768,14 +796,16 @@ app.use('/updateuserquizdifficulty', (req, res) => {
 });
 
 
-app.use('/updateuserquizname', (req, res) => {
+app.put('/updateuserquizname', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     if (tokenResult) {
 
       connection.query('UPDATE Quizzes SET quizname = ? WHERE id = ?;',
-        [req.body.optionalValue1, req.body.primaryKeyId],
+        [req.body.optionalData, req.body.key],
 
         function (updateUserQuizNameError, updateUserQuizNameResult) {
 
@@ -806,9 +836,11 @@ app.use('/updateuserquizname', (req, res) => {
 
 
 
-app.use('/updateuserquestion', (req, res) => {
+app.put('/updateuserquestion', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     if (tokenResult) {
 
@@ -816,7 +848,7 @@ app.use('/updateuserquestion', (req, res) => {
       // realistically the Quizid reference is overkill but it further ensures that the right question is only updated if the question belongs to the corresponding quiz 
 
       connection.query('UPDATE Questions SET Question = ? WHERE id = ? AND quizid = ?;',
-        [req.body.optionalValue1, req.body.primaryKeyId, req.body.optionalValue2],
+        [req.body.question, req.body.id, req.body.quizid],
 
         function (updateUserQuestionNameError, updateUserQuestionNameResult) {
 
@@ -844,9 +876,11 @@ app.use('/updateuserquestion', (req, res) => {
 });
 
 
-app.use('/updateuserquestionoption', (req, res) => {
+app.put('/updateuserquestionoption', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     if (tokenResult) {
 
@@ -854,7 +888,7 @@ app.use('/updateuserquestionoption', (req, res) => {
       // realistically the Quizid reference is overkill but it further ensures that the right question is only updated if the question belongs to the corresponding quiz 
 
       connection.query('UPDATE Question_Options SET questiontext = ? WHERE id = ? AND questionid = ?;',
-        [req.body.optionalValue1, req.body.primaryKeyId, req.body.optionalValue2],
+        [req.body.questiontext, req.body.id, req.body.questionid],
 
         function (updateUserQuestionOptionError, updateUserQuestionOptionResult) {
 
@@ -882,18 +916,26 @@ app.use('/updateuserquestionoption', (req, res) => {
 });
 
 
-app.use('/finduserquizzes', (req, res) => {
+app.get('/finduserquizzes/:params', (req, res) => {
 
-  jwt.verify(req.body.token, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
     if (tokenResult) {
 
+      const rawSearchQuery = req.params.params.split('&')[0];
 
-      const offset = req.body.currentpage * 6;
+      const rawCurrentpage = req.params.params.split('&')[1];
 
+      const extractedSearchQuery = rawSearchQuery.split('=')[1];
+
+      const extractedCurrentpage = rawCurrentpage.split('=')[1];
+
+      const offset = extractedCurrentpage * 6;
 
       connection.query('SELECT * FROM Quizzes WHERE created_by_userid = ? AND quizname = ?  LIMIT ?, 6',
-        [tokenResult.data, req.body.searchquery, offset],
+        [tokenResult.data, extractedSearchQuery, offset],
         function (selectUserQuizzesError, selectUserQuizzesResult) {
 
           if (selectUserQuizzesError) throw res.send({
@@ -931,3 +973,38 @@ app.use('/finduserquizzes', (req, res) => {
 
 });
 
+app.delete('/removeuserquiz', (req, res) => {
+
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+
+    if (tokenResult) {
+
+      connection.query('DELETE FROM Quizzes WHERE id = ?',
+        [req.body.primaryKeyId],
+
+        function (dropUserQuizzesError, dropUserQuizzesResult) {
+
+          if (dropUserQuizzesError) throw res.send({
+            error: dropUserQuizzesError
+
+          });
+
+          res.send({
+            results: dropUserQuizzesResult
+          });
+
+        });
+
+    } else {
+
+      res.send({
+        error: tokenErr
+      });
+
+    };
+
+  });
+
+});
