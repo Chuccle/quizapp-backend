@@ -437,7 +437,7 @@ app.get('/retrievequestions/:quizid', (req, res) => {
       error: selectQuestionRecordsError
     });
 
-    for (let i = 0; selectQuestionRecordsResults.length > i; i++) {
+    for (let i = 0; i < selectQuestionRecordsResults.length; i++) {
 
       connection.query('SELECT * FROM Question_Options WHERE questionid = ? AND iscorrect = 1', [selectQuestionRecordsResults[i].id], function (selectCorrectOptionRecordError, CorrectOptionRecordResults) {
 
@@ -973,7 +973,7 @@ app.get('/finduserquizzes/:params', (req, res) => {
 
 });
 
-app.delete('/removeuserquiz', (req, res) => {
+app.put('/removeuserquiz', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
