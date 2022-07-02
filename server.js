@@ -870,7 +870,7 @@ app.put('/updateuserquestionoption', (req, res) => {
 
     }
 
-    connection.query('SELECT created_by_userid FROM Quizzes WHERE id = (SELECT quizID FROM questions WHERE id = ?);',
+    connection.query('SELECT created_by_userid FROM Quizzes WHERE id = (SELECT quizID FROM Questions WHERE id = ?);',
       [req.body.questionid],
 
       function (selectUserIDError, selectUserIDResult) {
