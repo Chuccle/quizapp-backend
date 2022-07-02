@@ -21,11 +21,7 @@ const corsOptions = {
   credentials: true
 }
 
-
-
 app.use(cors(corsOptions))
-
-
 
 
 const limiter = rateLimit({
@@ -46,7 +42,6 @@ require('dotenv').config({
 })
 
 app.use(limiter);
-
 
 app.use(bodyParser.json())
 
@@ -85,7 +80,6 @@ app.get('/auth', (req, res) => {
   })
 
 });
-
 
 
 
@@ -163,58 +157,53 @@ app.get('/retrievequizzes/:page', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    // offset is how many results the page is designed to display
-    const extractedCurrentPage = req.params.page.split('=')[1];
-
-    const offset = extractedCurrentPage * 6;
-
-
-    if (tokenResult) {
-
-
-      connection.query('SELECT username FROM Accounts WHERE id = ?',
-        [tokenResult.data],
-        function (selectUsernameError, selectUsernameResult) {
-
-          if (selectUsernameError) throw res.send({
-            error: selectUsernameError
-          });
-
-
-          connection.query('SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? LIMIT ? , 6',
-            [tokenResult.data, offset],
-            function (selectQuizzesError, selectQuizzesResult) {
-
-              if (selectQuizzesError) throw res.send({
-                error: selectQuizzesError
-              });
-
-              connection.query('SELECT COUNT(*) As count FROM Quizzes;', function (selectQuizCountError, selectQuizCountResult) {
-                if (selectQuizCountError) throw res.send({
-                  error: selectQuizCountError
-                });
-
-
-                res.send({
-                  results: selectQuizzesResult,
-                  name: selectUsernameResult,
-                  quizcount: selectQuizCountResult
-                });
-
-              });
-
-            });
-
-        });
-
-    } else {
+    if (tokenErr) {
 
       res.send({
         error: tokenErr
       });
 
+    }
 
-    };
+    // offset is how many results the page is designed to display
+    const extractedCurrentPage = req.params.page.split('=')[1];
+
+    const offset = extractedCurrentPage * 6;
+
+    connection.query('SELECT username FROM Accounts WHERE id = ?',
+      [tokenResult.data],
+      function (selectUsernameError, selectUsernameResult) {
+
+        if (selectUsernameError) throw res.send({
+          error: selectUsernameError
+        });
+
+
+        connection.query('SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? LIMIT ? , 6',
+          [tokenResult.data, offset],
+          function (selectQuizzesError, selectQuizzesResult) {
+
+            if (selectQuizzesError) throw res.send({
+              error: selectQuizzesError
+            });
+
+            connection.query('SELECT COUNT(*) As count FROM Quizzes;', function (selectQuizCountError, selectQuizCountResult) {
+              if (selectQuizCountError) throw res.send({
+                error: selectQuizCountError
+              });
+
+
+              res.send({
+                results: selectQuizzesResult,
+                name: selectUsernameResult,
+                quizcount: selectQuizCountResult
+              });
+
+            });
+
+          });
+
+      });
 
   });
 
@@ -259,8 +248,6 @@ app.post('/login', (req, res) => {
           //sending our token response back to the client
 
           res.cookie('session_token', refreshToken, { sameSite: 'none', httpOnly: true, maxAge: sevendaymillis, secure: true });              //sending our token response back to the client
-
-
 
           res.send({
             token: token
@@ -363,56 +350,58 @@ app.post('/insertquiz', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenSuccess) {
 
-
-    connection.query('INSERT INTO Quizzes (quizname, created_by_userid, difficulty) VALUES (?, ?, ?);', [req.body.questionset[0].Quizname, tokenSuccess.data, req.body.questionset[0].Difficulty], function (insertQuizError, insertQuizResults) {
-
-      if (insertQuizError) throw res.send({
-        error: insertQuizError
-      });
-
-      req.body.questionset.forEach(questiondata => {
-
-        connection.query('INSERT INTO Questions (quizid, question) VALUES (?, ?);', [insertQuizResults.insertId, questiondata.Questionset.Questionname], function (insertQuestionsError, insertQuestionsResults) {
-
-          if (insertQuestionsError) throw res.send({
-            error: insertQuestionsError
-          });
-
-          let sql = "INSERT INTO Question_Options(questionid, questiontext, iscorrect) VALUES ?";
-
-          let values = [
-            [insertQuestionsResults.insertId, questiondata.Questionset.Options.Incorrect1, 0],
-            [insertQuestionsResults.insertId, questiondata.Questionset.Options.Incorrect2, 0],
-            [insertQuestionsResults.insertId, questiondata.Questionset.Options.Incorrect3, 0],
-            [insertQuestionsResults.insertId, questiondata.Questionset.Options.Correct, 1]
-          ];
-
-          // find a way of bulk inserting the entire set of options with 2d arraylist? done!
-
-          connection.query(sql, [values], function (insertQuestionsetError) {
-
-            if (insertQuestionsetError) throw res.send({
-              error: insertQuestionsetError
-
-            });
-
-          });
-
-        });
-
-      });
-
-      res.send({
-        QuizStatus: "Inserted"
-      });
-
-    });
-
     if (tokenErr) {
 
       res.send({
         error: tokenErr
       });
+
+
+      connection.query('INSERT INTO Quizzes (quizname, created_by_userid, difficulty) VALUES (?, ?, ?);',
+        [req.body.questionset[0].Quizname, tokenSuccess.data, req.body.questionset[0].Difficulty], function (insertQuizError, insertQuizResults) {
+
+          if (insertQuizError) throw res.send({
+            error: insertQuizError
+          });
+
+          req.body.questionset.forEach(questiondata => {
+
+            connection.query('INSERT INTO Questions (quizid, question) VALUES (?, ?);', [insertQuizResults.insertId, questiondata.Questionset.Questionname],
+              function (insertQuestionsError, insertQuestionsResults) {
+
+                if (insertQuestionsError) throw res.send({
+                  error: insertQuestionsError
+                });
+
+                let sql = "INSERT INTO Question_Options(questionid, questiontext, iscorrect) VALUES ?";
+
+                let values = [
+                  [insertQuestionsResults.insertId, questiondata.Questionset.Options.Incorrect1, 0],
+                  [insertQuestionsResults.insertId, questiondata.Questionset.Options.Incorrect2, 0],
+                  [insertQuestionsResults.insertId, questiondata.Questionset.Options.Incorrect3, 0],
+                  [insertQuestionsResults.insertId, questiondata.Questionset.Options.Correct, 1]
+                ];
+
+                // find a way of bulk inserting the entire set of options with 2d arraylist? done!
+
+                connection.query(sql, [values], function (insertQuestionsetError) {
+
+                  if (insertQuestionsetError) throw res.send({
+                    error: insertQuestionsetError
+
+                  });
+
+                });
+
+              });
+
+          });
+
+          res.send({
+            QuizStatus: "Inserted"
+          });
+
+        });
 
     };
 
@@ -437,7 +426,7 @@ app.get('/retrievequestions/:quizid', (req, res) => {
       error: selectQuestionRecordsError
     });
 
-    for (let i = 0; selectQuestionRecordsResults.length > i; i++) {
+    for (let i = 0; i < selectQuestionRecordsResults.length; i++) {
 
       connection.query('SELECT * FROM Question_Options WHERE questionid = ? AND iscorrect = 1', [selectQuestionRecordsResults[i].id], function (selectCorrectOptionRecordError, CorrectOptionRecordResults) {
 
@@ -495,61 +484,56 @@ app.post('/sendresults', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
-  jwt.verify(accessToken, process.env.JWT_SECRET, function (verifyError, verifySuccess) {
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (verifySuccess) {
+    if (tokenErr) {
 
-      connection.query('SELECT * FROM Quiz_User_Answers WHERE userid = ? And quizid = ?', [verifySuccess.data, req.body.quizid], function (selectUserQuizDataError, selectUserQuizDataResults) {
+      res.send({
+        error: tokenErr
+      });
+    }
 
-        if (selectUserQuizDataError) throw res.send({
-          error: selectUserQuizDataError
+    connection.query('SELECT * FROM Quiz_User_Answers WHERE userid = ? And quizid = ?', [tokenResult.data, req.body.quizid], function (selectUserQuizDataError, selectUserQuizDataResults) {
+
+      if (selectUserQuizDataError) throw res.send({
+        error: selectUserQuizDataError
+      });
+
+
+      if (selectUserQuizDataResults.length === 0) {
+
+
+        connection.query('INSERT INTO Quiz_User_Answers(userid, quizid, score) values (?,?,?)', [tokenResult.data, req.body.quizid, req.body.results], function (insertUserQuizDataError, _insertUserQuizDataResults) {
+
+          if (insertUserQuizDataError) throw res.send({
+            error: insertUserQuizDataError
+
+
+          });
         });
 
+      } else {
 
+        if (selectUserQuizDataResults[0].score < req.body.results) {
+          //by using update we can reduce the amount of records overall, the alternative is multiple records with different scores
+          connection.query('UPDATE Quiz_User_Answers SET score = ? WHERE id = ?', [req.body.results, selectUserQuizDataResults[0].id], function (updateUserQuizDataError, _updateUserQuizDataResults) {
 
-        if (selectUserQuizDataResults.length === 0) {
-
-
-          connection.query('INSERT INTO Quiz_User_Answers(userid, quizid, score) values (?,?,?)', [verifySuccess.data, req.body.quizid, req.body.results], function (insertUserQuizDataError, insertUserQuizDataResults) {
-
-            if (insertUserQuizDataError) throw res.send({
-              error: insertUserQuizDataError
-
+            if (updateUserQuizDataError) throw res.send({
+              error: updateUserQuizDataError
 
             });
+
           });
-
-        } else {
-
-          if (selectUserQuizDataResults[0].score < req.body.results) {
-            //by using update we can reduce the amount of records overall, the alternative is multiple records with different scores
-            connection.query('UPDATE Quiz_User_Answers SET score = ? WHERE id = ?', [req.body.results, selectUserQuizDataResults[0].id], function (updateUserQuizDataError, updateUserQuizDataResults) {
-
-              if (updateUserQuizDataError) throw res.send({
-                error: updateUserQuizDataError
-
-              });
-
-            });
-
-          };
 
         };
 
-      });
+      };
 
-      res.send({
-        status: "ok"
-      });
+    });
 
-    } else {
-
-      res.send({
-        error: verifyError
-
-      });
-
-    };
+    res.send({
+      status: "ok"
+    });
 
   });
 
@@ -595,48 +579,45 @@ app.get('/finduserrank/:params', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
-  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, _tokenResult) {
 
-    if (tokenResult) {
-
-      const rawSearchQuery = req.params.params.split('&')[0];
-
-      const rawCurrentpage = req.params.params.split('&')[1];
-
-      const extractedSearchQuery = rawSearchQuery.split('=')[1];
-
-      const extractedCurrentpage = rawCurrentpage.split('=')[1];
-
-      const offset = extractedCurrentpage * 3;
-
-      connection.query('SELECT * FROM (SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC) x WHERE username = ? LIMIT ?, 3', [extractedSearchQuery, offset], function (selectUserPositionError, selectUserPositionResults) {
-
-        if (selectUserPositionError) throw res.send({
-          error: selectUserPositionError
-        });
-
-        connection.query('SELECT COUNT(*) AS usersearchcount FROM (SELECT * FROM (SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC) x WHERE username = ?) x;', [extractedSearchQuery], function (selectUserPositionCountError, selectUserPositionCountResults) {
-
-          if (selectUserPositionCountError) throw res.send({
-            error: selectUserPositionCountError
-          });
-
-          res.send({
-            results: selectUserPositionResults,
-            leaderboardcount: selectUserPositionCountResults
-          });
-
-        });
-
-      });
-
-    } else {
+    if (tokenErr) {
 
       res.send({
         error: tokenErr
       });
+    }
 
-    };
+    const rawSearchQuery = req.params.params.split('&')[0];
+
+    const rawCurrentpage = req.params.params.split('&')[1];
+
+    const extractedSearchQuery = rawSearchQuery.split('=')[1];
+
+    const extractedCurrentpage = rawCurrentpage.split('=')[1];
+
+    const offset = extractedCurrentpage * 3;
+
+    connection.query('SELECT * FROM (SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC) x WHERE username = ? LIMIT ?, 3', [extractedSearchQuery, offset], function (selectUserPositionError, selectUserPositionResults) {
+
+      if (selectUserPositionError) throw res.send({
+        error: selectUserPositionError
+      });
+
+      connection.query('SELECT COUNT(*) AS usersearchcount FROM (SELECT * FROM (SELECT ROW_NUMBER() OVER ( ORDER BY successfulquizzes DESC ) AS rank, Accounts.id, Accounts.username, COUNT(Quiz_User_Answers.quizid) AS successfulquizzes FROM Accounts INNER JOIN Quiz_User_Answers ON Quiz_User_Answers.userid = Accounts.id WHERE Quiz_User_Answers.score>=80 GROUP BY Accounts.id ORDER BY successfulquizzes DESC) x WHERE username = ?) x;', [extractedSearchQuery], function (selectUserPositionCountError, selectUserPositionCountResults) {
+
+        if (selectUserPositionCountError) throw res.send({
+          error: selectUserPositionCountError
+        });
+
+        res.send({
+          results: selectUserPositionResults,
+          leaderboardcount: selectUserPositionCountResults
+        });
+
+      });
+
+    });
 
   });
 
@@ -649,54 +630,49 @@ app.get('/findquiz/:params', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
-
-      const rawSearchQuery = req.params.params.split('&')[0];
-
-      const rawCurrentpage = req.params.params.split('&')[1];
-
-      const extractedSearchQuery = rawSearchQuery.split('=')[1];
-
-      const extractedCurrentpage = rawCurrentpage.split('=')[1];
-
-      const offset = extractedCurrentpage * 6;
-
-      connection.query('SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? WHERE Quizzes.quizname = ? LIMIT ?, 6',
-        [tokenResult.data, extractedSearchQuery, offset],
-        function (selectQuiznameError, selectQuiznameResult) {
-
-          if (selectQuiznameError) throw res.send({
-            error: selectQuiznameError
-
-          });
-
-          connection.query('SELECT COUNT(*) AS quizsearchcount FROM (SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? WHERE Quizzes.quizname = ?) x',
-            [tokenResult.data, extractedSearchQuery],
-            function (selectQuiznameCountError, selectQuiznameCountResult) {
-
-              if (selectQuiznameCountError) throw res.send({
-                error: selectQuiznameError
-
-              });
-
-              res.send({
-                results: selectQuiznameResult,
-                quizsearchcount: selectQuiznameCountResult
-
-              });
-
-            });
-
-        });
-
-    } else {
-
+    if (tokenErr) {
       res.send({
         error: tokenErr
       });
+    }
 
+    const rawSearchQuery = req.params.params.split('&')[0];
 
-    };
+    const rawCurrentpage = req.params.params.split('&')[1];
+
+    const extractedSearchQuery = rawSearchQuery.split('=')[1];
+
+    const extractedCurrentpage = rawCurrentpage.split('=')[1];
+
+    const offset = extractedCurrentpage * 6;
+
+    connection.query('SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? WHERE Quizzes.quizname = ? LIMIT ?, 6',
+      [tokenResult.data, extractedSearchQuery, offset],
+      function (selectQuiznameError, selectQuiznameResult) {
+
+        if (selectQuiznameError) throw res.send({
+          error: selectQuiznameError
+
+        });
+
+        connection.query('SELECT COUNT(*) AS quizsearchcount FROM (SELECT Quizzes.id, Quizzes.quizname, Quizzes.difficulty, Quiz_User_Answers.score FROM Quizzes LEFT JOIN Quiz_User_Answers ON Quiz_User_Answers.quizid = Quizzes.id AND Quiz_User_Answers.userid = ? WHERE Quizzes.quizname = ?) x',
+          [tokenResult.data, extractedSearchQuery],
+          function (selectQuiznameCountError, selectQuiznameCountResult) {
+
+            if (selectQuiznameCountError) throw res.send({
+              error: selectQuiznameError
+
+            });
+
+            res.send({
+              results: selectQuiznameResult,
+              quizsearchcount: selectQuiznameCountResult
+
+            });
+
+          });
+
+      });
 
   });
 
@@ -710,47 +686,43 @@ app.get('/retrieveuserquizzes/:page', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
-
-      const offset = extractedCurrentpage * 6;
-
-      connection.query('SELECT * FROM Quizzes WHERE created_by_userid = ? LIMIT ?, 6',
-        [tokenResult.data, offset],
-        function (selectUserQuizzesError, selectUserQuizzesResult) {
-
-          if (selectUserQuizzesError) throw res.send({
-            error: selectUserQuizzesError
-
-          });
-
-          connection.query('SELECT COUNT(*) AS quizcount FROM (SELECT quizname and difficulty FROM Quizzes WHERE created_by_userid = ?) x',
-            [tokenResult.data],
-            function (selectUserQuizCountError, selectUserQuizCountResult) {
-
-              if (selectUserQuizCountError) throw res.send({
-                error: selectUserQuizCountError
-
-              });
-
-
-              res.send({
-                results: selectUserQuizzesResult,
-                quizsearchcount: selectUserQuizCountResult
-              });
-
-            });
-
-        });
-
-    } else {
+    if (tokenErr) {
 
       res.send({
         error: tokenErr
       });
 
+    }
+
+    const offset = extractedCurrentpage * 6;
+
+    connection.query('SELECT * FROM Quizzes WHERE created_by_userid = ? LIMIT ?, 6',
+      [tokenResult.data, offset],
+      function (selectUserQuizzesError, selectUserQuizzesResult) {
+
+        if (selectUserQuizzesError) throw res.send({
+          error: selectUserQuizzesError
+
+        });
+
+        connection.query('SELECT COUNT(*) AS quizcount FROM (SELECT quizname and difficulty FROM Quizzes WHERE created_by_userid = ?) x',
+          [tokenResult.data],
+          function (selectUserQuizCountError, selectUserQuizCountResult) {
+
+            if (selectUserQuizCountError) throw res.send({
+              error: selectUserQuizCountError
+
+            });
 
 
-    };
+            res.send({
+              results: selectUserQuizzesResult,
+              quizsearchcount: selectUserQuizCountResult
+            });
+
+          });
+
+      });
 
   });
 
@@ -765,31 +737,27 @@ app.put('/updateuserquizdifficulty', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
-
-      connection.query('UPDATE Quizzes SET difficulty = ? WHERE id = ?;',
-        [req.body.optionalData, req.body.key],
-
-        function (updateUserQuizDifficultyError, updateUserQuizDifficultyResult) {
-
-          if (updateUserQuizDifficultyError) throw res.send({
-            error: updateUserQuizDifficultyError
-
-          });
-
-          res.send({
-            results: updateUserQuizDifficultyResult
-          });
-
-        });
-
-    } else {
-
+    if (tokenErr) {
       res.send({
         error: tokenErr
       });
+    }
 
-    };
+    connection.query('UPDATE Quizzes SET difficulty = ? WHERE id = ? AND created_by_userid = ?;',
+      [req.body.optionalData, req.body.key, tokenResult.data],
+
+      function (updateUserQuizDifficultyError, updateUserQuizDifficultyResult) {
+
+        if (updateUserQuizDifficultyError) throw res.send({
+          error: updateUserQuizDifficultyError
+
+        });
+
+        res.send({
+          results: updateUserQuizDifficultyResult
+        });
+
+      });
 
   });
 
@@ -802,36 +770,32 @@ app.put('/updateuserquizname', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
-
-      connection.query('UPDATE Quizzes SET quizname = ? WHERE id = ?;',
-        [req.body.optionalData, req.body.key],
-
-        function (updateUserQuizNameError, updateUserQuizNameResult) {
-
-          if (updateUserQuizNameError) throw res.send({
-            error: updateUserQuizNameError
-
-          });
-
-          res.send({
-            results: updateUserQuizNameResult
-          });
-
-        });
-
-    } else {
+    if (tokenErr) {
 
       res.send({
         error: tokenErr
       });
+    }
 
-    };
+    connection.query('UPDATE Quizzes SET quizname = ? WHERE id = ? AND created_by_userid = ?;',
+      [req.body.optionalData, req.body.key, tokenResult.data],
+
+      function (updateUserQuizNameError, updateUserQuizNameResult) {
+
+        if (updateUserQuizNameError) throw res.send({
+          error: updateUserQuizNameError
+
+        });
+
+        res.send({
+          results: updateUserQuizNameResult
+        });
+
+      });
 
   });
 
 });
-
 
 
 
@@ -842,38 +806,55 @@ app.put('/updateuserquestion', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
-
-
-      // realistically the Quizid reference is overkill but it further ensures that the right question is only updated if the question belongs to the corresponding quiz 
-
-      connection.query('UPDATE Questions SET Question = ? WHERE id = ? AND quizid = ?;',
-        [req.body.question, req.body.id, req.body.quizid],
-
-        function (updateUserQuestionNameError, updateUserQuestionNameResult) {
-
-          if (updateUserQuestionNameError) throw res.send({
-            error: updateUserQuestionNameError
-
-          });
-
-          res.send({
-            results: updateUserQuestionNameResult
-          });
-
-        });
-
-    } else {
-
+    if (tokenErr) {
       res.send({
         error: tokenErr
       });
 
-    };
+    }
+
+
+    connection.query('SELECT created_by_userid FROM Quizzes WHERE id = ?;',
+      [req.body.quizid],
+
+      function (selectUserIDError, selectUserIDResult) {
+
+        if (selectUserIDError) throw res.send({
+          error: selectUserIDError
+
+        });
+
+        if (selectUserIDResult[0].created_by_userid != tokenResult.data) {
+
+          res.send({
+            error: "You do not have permission to edit this quiz"
+          });
+
+        }
+
+
+        connection.query('UPDATE Questions SET Question = ? WHERE id = ? AND quizid = ?;',
+          [req.body.question, req.body.id, req.body.quizid],
+
+          function (updateUserQuestionNameError, updateUserQuestionNameResult) {
+
+            if (updateUserQuestionNameError) throw res.send({
+              error: updateUserQuestionNameError
+
+            });
+
+            res.send({
+              results: updateUserQuestionNameResult
+            });
+
+          });
+      })
 
   });
 
 });
+
+
 
 
 app.put('/updateuserquestionoption', (req, res) => {
@@ -882,38 +863,54 @@ app.put('/updateuserquestionoption', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
-
-
-      // realistically the Quizid reference is overkill but it further ensures that the right question is only updated if the question belongs to the corresponding quiz 
-
-      connection.query('UPDATE Question_Options SET questiontext = ? WHERE id = ? AND questionid = ?;',
-        [req.body.questiontext, req.body.id, req.body.questionid],
-
-        function (updateUserQuestionOptionError, updateUserQuestionOptionResult) {
-
-          if (updateUserQuestionOptionError) throw res.send({
-            error: updateUserQuestionOptionError
-
-          });
-
-          res.send({
-            results: updateUserQuestionOptionResult
-          });
-
-        });
-
-    } else {
-
+    if (tokenErr) {
       res.send({
         error: tokenErr
       });
 
-    };
+    }
+
+    connection.query('SELECT created_by_userid FROM Quizzes WHERE id = (SELECT quizID FROM questions WHERE id = ?);',
+      [req.body.questionid],
+
+      function (selectUserIDError, selectUserIDResult) {
+
+        if (selectUserIDError) throw res.send({
+          error: selectUserIDError
+
+        });
+
+
+        if (selectUserIDResult[0].created_by_userid != tokenResult.data) {
+
+          res.send({
+            error: "You do not have permission to edit this quiz"
+          });
+
+        }
+
+        connection.query('UPDATE Question_Options SET questiontext = ? WHERE id = ? AND questionid = ?;',
+          [req.body.questiontext, req.body.id, req.body.questionid],
+
+          function (updateUserQuestionOptionError, updateUserQuestionOptionResult) {
+
+            if (updateUserQuestionOptionError) throw res.send({
+              error: updateUserQuestionOptionError
+
+            });
+
+            res.send({
+              results: updateUserQuestionOptionResult
+            });
+
+          });
+
+      })
 
   });
 
 });
+
 
 
 app.get('/finduserquizzes/:params', (req, res) => {
@@ -922,88 +919,86 @@ app.get('/finduserquizzes/:params', (req, res) => {
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
-
-      const rawSearchQuery = req.params.params.split('&')[0];
-
-      const rawCurrentpage = req.params.params.split('&')[1];
-
-      const extractedSearchQuery = rawSearchQuery.split('=')[1];
-
-      const extractedCurrentpage = rawCurrentpage.split('=')[1];
-
-      const offset = extractedCurrentpage * 6;
-
-      connection.query('SELECT * FROM Quizzes WHERE created_by_userid = ? AND quizname = ?  LIMIT ?, 6',
-        [tokenResult.data, extractedSearchQuery, offset],
-        function (selectUserQuizzesError, selectUserQuizzesResult) {
-
-          if (selectUserQuizzesError) throw res.send({
-            error: selectUserQuizzesError
-
-          });
-
-          connection.query('SELECT COUNT(*) AS quizcount FROM (SELECT quizname and difficulty FROM Quizzes WHERE created_by_userid = ? AND quizname = ?) x',
-            [tokenResult.data, req.body.searchquery],
-            function (selectUserQuizCountError, selectUserQuizCountResult) {
-
-              if (selectUserQuizCountError) throw res.send({
-                error: selectUserQuizCountError
-
-              });
-
-              res.send({
-                results: selectUserQuizzesResult,
-                quizsearchcount: selectUserQuizCountResult
-              });
-
-            });
-
-        });
-
-    } else {
+    if (tokenErr) {
 
       res.send({
         error: tokenErr
       });
 
-    };
+    }
+
+    const rawSearchQuery = req.params.params.split('&')[0];
+
+    const rawCurrentpage = req.params.params.split('&')[1];
+
+    const extractedSearchQuery = rawSearchQuery.split('=')[1];
+
+    const extractedCurrentpage = rawCurrentpage.split('=')[1];
+
+    const offset = extractedCurrentpage * 6;
+
+    connection.query('SELECT * FROM Quizzes WHERE created_by_userid = ? AND quizname = ?  LIMIT ?, 6',
+      [tokenResult.data, extractedSearchQuery, offset],
+      function (selectUserQuizzesError, selectUserQuizzesResult) {
+
+        if (selectUserQuizzesError) throw res.send({
+          error: selectUserQuizzesError
+
+        });
+
+        connection.query('SELECT COUNT(*) AS quizcount FROM (SELECT quizname and difficulty FROM Quizzes WHERE created_by_userid = ? AND quizname = ?) x',
+          [tokenResult.data, req.body.searchquery],
+          function (selectUserQuizCountError, selectUserQuizCountResult) {
+
+            if (selectUserQuizCountError) throw res.send({
+              error: selectUserQuizCountError
+
+            });
+
+            res.send({
+              results: selectUserQuizzesResult,
+              quizsearchcount: selectUserQuizCountResult
+            });
+
+          });
+
+      });
+
 
   });
 
 });
 
-app.delete('/removeuserquiz', (req, res) => {
+app.delete('/removeuserquiz/:quizid', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
+  const quizid = req.params.quizid.split('=')[1];
+
 
   jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
 
-    if (tokenResult) {
-
-      connection.query('DELETE FROM Quizzes WHERE id = ?',
-        [req.body.primaryKeyId],
-
-        function (dropUserQuizzesError, dropUserQuizzesResult) {
-
-          if (dropUserQuizzesError) throw res.send({
-            error: dropUserQuizzesError
-
-          });
-
-          res.send({
-            results: dropUserQuizzesResult
-          });
-
-        });
-
-    } else {
+    if (tokenErr) {
 
       res.send({
         error: tokenErr
       });
+    }
 
-    };
+    connection.query('DELETE FROM Quizzes WHERE id = ? AND created_by_userid = ?;',
+      [quizid, tokenResult.data],
+
+      function (dropUserQuizzesError, dropUserQuizzesResult) {
+
+        if (dropUserQuizzesError) throw res.send({
+          error: dropUserQuizzesError
+
+        });
+
+        res.send({
+          results: dropUserQuizzesResult
+        });
+
+      });
 
   });
 
