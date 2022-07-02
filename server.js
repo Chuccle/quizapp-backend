@@ -83,7 +83,6 @@ app.get('/auth', (req, res) => {
 
 
 
-
 app.get('/silentrefresh', (req, res) => {
 
   // We split the Authorisation header into 2 parts, the Bearer part and the token and extract the token
