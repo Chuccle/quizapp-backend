@@ -148,7 +148,7 @@ app.get('/silentrefresh', (req, res) => {
 });
 
 
-app.get('/retrievequizzes/:page', (req, res) => {
+app.get('/quizzes/:page', (req, res) => {
 
 
   const accessToken = req.headers.authorization.split(' ')[1]
@@ -344,7 +344,7 @@ app.post('/register', (req, res) => {
 });
 
 
-app.post('/insertquiz', (req, res) => {
+app.post('/quiz', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -410,7 +410,7 @@ app.post('/insertquiz', (req, res) => {
 });
 
 
-app.get('/retrievequestions/:quizid', (req, res) => {
+app.get('/questions/:quizid', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -480,7 +480,7 @@ app.get('/retrievequestions/:quizid', (req, res) => {
 
 });
 
-app.post('/sendresults', (req, res) => {
+app.post('/results', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -539,7 +539,7 @@ app.post('/sendresults', (req, res) => {
 
 });
 
-app.get('/retrieveleaderboard/:page', (req, res) => {
+app.get('/leaderboard/:page', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -575,7 +575,7 @@ app.get('/retrieveleaderboard/:page', (req, res) => {
 
 
 
-app.get('/finduserrank/:params', (req, res) => {
+app.get('/leaderboard/search/:params', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -624,7 +624,7 @@ app.get('/finduserrank/:params', (req, res) => {
 });
 
 
-app.get('/findquiz/:params', (req, res) => {
+app.get('/quiz/:params', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -678,7 +678,7 @@ app.get('/findquiz/:params', (req, res) => {
 
 });
 
-app.get('/retrieveuserquizzes/:page', (req, res) => {
+app.get('/userquizzes/:page', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -728,10 +728,66 @@ app.get('/retrieveuserquizzes/:page', (req, res) => {
 
 });
 
+app.get('/userquizzes/search/:params', (req, res) => {
+
+  const accessToken = req.headers.authorization.split(' ')[1]
+
+  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
+
+    if (tokenErr) {
+
+      res.send({
+        error: tokenErr
+      });
+
+    }
+
+    const rawSearchQuery = req.params.params.split('&')[0];
+
+    const rawCurrentpage = req.params.params.split('&')[1];
+
+    const extractedSearchQuery = rawSearchQuery.split('=')[1];
+
+    const extractedCurrentpage = rawCurrentpage.split('=')[1];
+
+    const offset = extractedCurrentpage * 6;
+
+    connection.query('SELECT * FROM Quizzes WHERE created_by_userid = ? AND quizname = ?  LIMIT ?, 6',
+      [tokenResult.data, extractedSearchQuery, offset],
+      function (selectUserQuizzesError, selectUserQuizzesResult) {
+
+        if (selectUserQuizzesError) throw res.send({
+          error: selectUserQuizzesError
+
+        });
+
+        connection.query('SELECT COUNT(*) AS quizcount FROM (SELECT quizname and difficulty FROM Quizzes WHERE created_by_userid = ? AND quizname = ?) x',
+          [tokenResult.data, req.body.searchquery],
+          function (selectUserQuizCountError, selectUserQuizCountResult) {
+
+            if (selectUserQuizCountError) throw res.send({
+              error: selectUserQuizCountError
+
+            });
+
+            res.send({
+              results: selectUserQuizzesResult,
+              quizsearchcount: selectUserQuizCountResult
+            });
+
+          });
+
+      });
+
+
+  });
+
+});
 
 
 
-app.put('/updateuserquizdifficulty', (req, res) => {
+
+app.put('/quiz/difficulty', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -764,7 +820,7 @@ app.put('/updateuserquizdifficulty', (req, res) => {
 });
 
 
-app.put('/updateuserquizname', (req, res) => {
+app.put('/quiz/name', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -800,7 +856,7 @@ app.put('/updateuserquizname', (req, res) => {
 
 
 
-app.put('/updateuserquestion', (req, res) => {
+app.put('/quiz/question', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -857,7 +913,7 @@ app.put('/updateuserquestion', (req, res) => {
 
 
 
-app.put('/updateuserquestionoption', (req, res) => {
+app.put('/quiz/question/option', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
 
@@ -870,7 +926,7 @@ app.put('/updateuserquestionoption', (req, res) => {
 
     }
 
-    connection.query('SELECT created_by_userid FROM Quizzes WHERE id = (SELECT quizID FROM questions WHERE id = ?);',
+    connection.query('SELECT created_by_userid FROM Quizzes WHERE id = (SELECT quizID FROM Questions WHERE id = ?);',
       [req.body.questionid],
 
       function (selectUserIDError, selectUserIDResult) {
@@ -912,64 +968,7 @@ app.put('/updateuserquestionoption', (req, res) => {
 });
 
 
-
-app.get('/finduserquizzes/:params', (req, res) => {
-
-  const accessToken = req.headers.authorization.split(' ')[1]
-
-  jwt.verify(accessToken, process.env.JWT_SECRET, function (tokenErr, tokenResult) {
-
-    if (tokenErr) {
-
-      res.send({
-        error: tokenErr
-      });
-
-    }
-
-    const rawSearchQuery = req.params.params.split('&')[0];
-
-    const rawCurrentpage = req.params.params.split('&')[1];
-
-    const extractedSearchQuery = rawSearchQuery.split('=')[1];
-
-    const extractedCurrentpage = rawCurrentpage.split('=')[1];
-
-    const offset = extractedCurrentpage * 6;
-
-    connection.query('SELECT * FROM Quizzes WHERE created_by_userid = ? AND quizname = ?  LIMIT ?, 6',
-      [tokenResult.data, extractedSearchQuery, offset],
-      function (selectUserQuizzesError, selectUserQuizzesResult) {
-
-        if (selectUserQuizzesError) throw res.send({
-          error: selectUserQuizzesError
-
-        });
-
-        connection.query('SELECT COUNT(*) AS quizcount FROM (SELECT quizname and difficulty FROM Quizzes WHERE created_by_userid = ? AND quizname = ?) x',
-          [tokenResult.data, req.body.searchquery],
-          function (selectUserQuizCountError, selectUserQuizCountResult) {
-
-            if (selectUserQuizCountError) throw res.send({
-              error: selectUserQuizCountError
-
-            });
-
-            res.send({
-              results: selectUserQuizzesResult,
-              quizsearchcount: selectUserQuizCountResult
-            });
-
-          });
-
-      });
-
-
-  });
-
-});
-
-app.delete('/removeuserquiz/:quizid', (req, res) => {
+app.delete('/quiz/:quizid', (req, res) => {
 
   const accessToken = req.headers.authorization.split(' ')[1]
   const quizid = req.params.quizid.split('=')[1];
